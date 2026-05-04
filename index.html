@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>reader — Distraction-Free Reading Mode</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0e0e1c;
+      color: #e0e0ff;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 64px;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border-radius: 18px;
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: 0 12px 60px rgba(0,0,0,.55);
+    }
+
+    .badge {
+      display: inline-block;
+      background: #252545;
+      color: #a0a0d0;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+
+    h1 span { color: #7878e8; }
+
+    .tagline {
+      font-size: 15px;
+      color: #8888b8;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* ── bookmarklet button ── */
+    .bm-wrap {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    #reader-link {
+      display: inline-block;
+      background: linear-gradient(135deg, #4040a0, #6060d0);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      padding: 14px 36px;
+      border-radius: 12px;
+      text-decoration: none;
+      letter-spacing: .5px;
+      box-shadow: 0 4px 20px rgba(64,64,160,.45);
+      cursor: grab;
+      transition: transform .12s, box-shadow .12s;
+      user-select: none;
+    }
+
+    #reader-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(64,64,160,.55);
+    }
+
+    #reader-link:active { cursor: grabbing; }
+
+    .drag-hint {
+      font-size: 12px;
+      color: #6060a0;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* ── steps ── */
+    .steps {
+      background: #12122a;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin: 28px 0;
+      counter-reset: step;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 13.5px;
+      color: #a0a0c8;
+      line-height: 1.6;
+      padding: 6px 0;
+    }
+
+    .step + .step { border-top: 1px solid #1e1e40; }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      background: #252548;
+      color: #8080d0;
+      font-size: 11px;
+      font-weight: 700;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    /* ── formats ── */
+    .formats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 28px;
+    }
+
+    .fmt-tag {
+      background: #252545;
+      color: #a0a0d8;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 13px;
+      border-radius: 20px;
+      letter-spacing: .3px;
+    }
+
+    /* ── section labels ── */
+    .label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #5050a0;
+      margin-bottom: 10px;
+    }
+
+    /* ── divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid #1e1e3a;
+      margin: 24px 0;
+    }
+
+    /* ── footer ── */
+    .footer {
+      margin-top: 28px;
+      font-size: 12px;
+      color: #44447a;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .footer a { color: #5858a8; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    /* ── preview panel ── */
+    .preview {
+      background: #12122a;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .preview-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #0e0e1e;
+      border-bottom: 1px solid #1a1a38;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+
+    .preview-body {
+      padding: 14px 16px;
+      font-size: 11.5px;
+      color: #c8c8e8;
+      line-height: 1.7;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+    }
+
+    .preview-body .lbl { color: #7070c0; margin-right: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge">Edge Toolkit</div>
+  <h1>📖 <span>reader</span></h1>
+  <p class="tagline">One click. Clean reading. Zero distractions.<br>Strip away ads, nav, and junk from any article.</p>
+
+  <div class="label">Install</div>
+  <div class="bm-wrap">
+    <a id="reader-link" href="#">📖 reader</a>
+  </div>
+  <p class="drag-hint">Drag to your bookmarks bar — or right-click → Bookmark this link</p>
+
+  <hr>
+
+  <div class="label">How it works</div>
+  <div class="steps">
+    <div class="step">Visit any article, blog post, or news page.</div>
+    <div class="step">Click <strong>reader</strong> in your bookmarks bar.</div>
+    <div class="step">Enjoy a clean, readable view of the content.</div>
+    <div class="step">Click the overlay to exit or press Escape.</div>
+  </div>
+
+  <div class="label">Features</div>
+  <div class="formats">
+    <span class="fmt-tag">Article Detection</span>
+    <span class="fmt-tag">Ad & Tracker Removal</span>
+    <span class="fmt-tag">Clean Typography</span>
+    <span class="fmt-tag">Dark Mode Friendly</span>
+    <span class="fmt-tag">Keyboard Shortcuts</span>
+  </div>
+
+  <div class="label">Example output</div>
+  <div class="preview">
+    <div class="preview-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+    </div>
+    <div class="preview-body">
+      <span class="lbl">Before:</span> Ads, nav bars, sidebars, comments, pop-ups<br>
+      <span class="lbl">After:</span> Clean article text with proper spacing and typography<br>
+    </div>
+  </div>
+
+  <div class="footer">
+    Part of the <strong>Edge Toolkit</strong> &mdash; private, instant, zero dependencies.<br>
+    <a href="https://github.com/edgeof8">github.com/edgeof8</a>
+  </div>
+</div>
+
+<script>
+// ── minified bookmarklet source ─────────────────────────────────────────────
+var _reader = (function(){return function(){if(document.getElementById('edge-reader-overlay'))return;const qs=s=>document.querySelector(s);const mt=n=>qs(`meta[name="${n}"],meta[property="${n}"]`)?.content||'';const title=mt('og:title')||mt('twitter:title')||document.title;let author=mt('author')||mt('article:author')||qs('[rel="author"],.author,.byline')?.textContent||'';author=author.replace(/^by\s+/i,'').trim();const dateStr=mt('article:published_time')||qs('time[datetime]')?.getAttribute('datetime')||'';const date=dateStr?new Date(dateStr).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'';const site=mt('og:site_name')||location.hostname;function getBody(){const candidates=Array.from(document.querySelectorAll('article,main[role="main"],.post-content,.article-content,.entry-content'));if(candidates.length>0)return candidates.sort((a,b)=>b.innerText.length-a.innerText.length)[0].cloneNode(true);let best=null,max=0;document.querySelectorAll('div,section').forEach(el=>{let score=el.getElementsByTagName('p').length;if(score>max){max=score;best=el}});return best?best.cloneNode(true):document.body.cloneNode(true)}const contentNode=getBody();const junk=['script','style','nav','aside','footer','header','form','iframe','.ad','.adsbygoogle','.social','.share','[role="complementary"]','[role="navigation"]','#comments','.comments'];junk.forEach(sel=>{try{contentNode.querySelectorAll(sel).forEach(e=>e.remove())}catch(e){}});const overlay=document.createElement('div');overlay.id='edge-reader-overlay';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#0e0e1c;color:#e0e0ff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;z-index:2147483647;overflow:auto;';const container=document.createElement('div');container.style.cssText='background:#1a1a2e;border-radius:18px;padding:40px;max-width:800px;width:90%;max-height:90vh;overflow:auto;box-shadow:0 12px 60px rgba(0,0,0,.55);';const header=document.createElement('div');header.style.cssText='margin-bottom:32px;';const titleEl=document.createElement('h1');titleEl.style.cssText='font-size:2.2rem;font-weight:800;letter-spacing:-.5px;margin-bottom:8px;line-height:1.1;';titleEl.textContent=title;header.appendChild(titleEl);if(site){const siteEl=document.createElement('p');siteEl.style.cssText='color:#8888b8;font-size:15px;margin-bottom:8px;';siteEl.textContent=`Source: ${site}`;header.appendChild(siteEl)}if(date){const dateEl=document.createElement('p');dateEl.style.cssText='color:#8888b8;font-size:15px;margin-bottom:8px;';dateEl.textContent=`Date: ${date}`;header.appendChild(dateEl)}if(author){const authorEl=document.createElement('p');authorEl.style.cssText='color:#8888b8;font-size:15px;margin-bottom:8px;';authorEl.textContent=`By: ${author}`;header.appendChild(authorEl)}container.appendChild(header);container.appendChild(contentNode);overlay.appendChild(container);document.body.appendChild(overlay);const exitOverlay=()=>{overlay.remove()};overlay.addEventListener('click',e=>{if(e.target===overlay)exitOverlay()});document.addEventListener('keydown',e=>{if(e.key==='Escape')exitOverlay()})}})();
+// Set the bookmarklet href from the minified source string
+document.getElementById('reader-link').href =
+  'javascript:(' + encodeURIComponent(_reader) + ')();void 0';
+</script>
+
+</body>
+</html>
